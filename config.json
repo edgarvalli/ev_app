@@ -1,0 +1,11 @@
+{
+    "host": "localhost",
+    "port": 5000,
+    "debug": true,
+    "secret_key": "p4ssw0rd2",
+    "db_host": "localhost",
+    "db_user": "root",
+    "db_pass": "p4ssw0rd",
+    "db_prefix": "sag",
+    "db_name": "sag_main"
+}
