@@ -53,6 +53,21 @@ def api_search(model):
     db.config.parse_from_dict(current_app.config)
     return db.search(model=model, where=where, fields=fields, limit=limit)
 
+@api.route('/<model>/update', methods=['PUT'])
+def api_update(model):
+    json_body: dict = request.get_json()
+    if json_body is None:
+        return {"error": "Invalid or missing JSON"}, 400
+    
+    id = json_body.get('id', 0)
+    data = json_body.get('data',{})
+    db = Database()
+    db.config.parse_from_dict(current_app.config)
+    db.config.dbname = request.headers.get('dbname','evapp')
+    
+    db.update(model=model, id=id, data=data)
+    
+    return {}
 
 @api.route("/<model>/<method>", methods=["POST", "GET", "UPDATE", "DELETE"])
 def api_find(model, method):
