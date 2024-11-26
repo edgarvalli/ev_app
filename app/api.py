@@ -1,6 +1,24 @@
+import ast
 import importlib
-from flask import Blueprint, request
-from app.models import HttpAPIResponse
+from pathlib import Path
+from app.tools.evorm import Database
+from flask import Blueprint, request, current_app
+
+
+class HttpAPIResponse:
+
+    error: bool
+    message: str
+    data: list | dict
+
+    def __init__(self) -> None:
+        self.error = True
+        self.message = "Http Response Init"
+        self.data = {}
+
+    def todict(self) -> dict:
+        return self.__dict__
+
 
 api = Blueprint("api", import_name=__name__, url_prefix="/api")
 
@@ -11,8 +29,33 @@ def api_index():
     return r.todict()
 
 
+@api.route("/db/<dbname>")
+def api_new_db(dbname):
+
+    from app.tools.evorm import DBConfig, generate_database
+
+    config = DBConfig()
+    config.parse_from_dict(current_app.config)
+    config.dbname = config.dbprefix + "_" + dbname
+    models_path = Path(current_app.root_path).joinpath("models")
+    return generate_database(config=config, models_path=models_path)
+
+
+@api.route("/<model>/search/")
+def api_search(model):
+    fields = request.args.get("fields", "*")
+    where = request.args.get("where", None)
+    limit = request.args.get("limit", "50")
+
+    if where:
+        where = ast.literal_eval(where)
+    db = Database()
+    db.config.parse_from_dict(current_app.config)
+    return db.search(model=model, where=where, fields=fields, limit=limit)
+
+
 @api.route("/<model>/<method>", methods=["POST", "GET", "UPDATE", "DELETE"])
-def api_search(model, method):
+def api_find(model, method):
     try:
         if request.method == "GET":
             key = "args"
@@ -23,14 +66,12 @@ def api_search(model, method):
                 key = "json"
 
         data: dict = getattr(request, key)
-        # model = data.get("model", "base")
-        # method = data.get("method", "search")
 
         module = f"app.modules.{model}"
         module = importlib.import_module(module)
         module = getattr(module, model)
         module = module()
-        setattr(module,'dbname', 'dbname')
+        setattr(module, "dbname", "dbname")
         return getattr(module, method)(data)
     except ModuleNotFoundError as e:
         return {"error": True, "message": e.name}

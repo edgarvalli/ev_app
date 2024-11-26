@@ -1,6 +1,6 @@
 import hashlib
 from functools import wraps
-from app.tools.database import Database
+from app.tools.evorm.database import Database
 from flask import Blueprint, request, render_template, redirect, session, current_app
 
 admin_login_app = Blueprint('admin login', __name__, url_prefix='/admin')
@@ -41,9 +41,8 @@ def login_singin():
         return handle_request_error('Debe de enviar el valor Usuario')
     if password is None:
         return handle_request_error('Debe de enviar el valor Contraseña')
-    
-    dbname = current_app.config.get('db_prefix', '') + '_main'
-    db = Database(dbname)
+    db = Database()
+    db.config.parse_from_dict(current_app.config)
     # Se verifica en la base de datos
     query = f"SELECT id,username,password,fullname,email,phone FROM users WHERE username='{username}' AND active=1"
     user = db.query(query=query).fetchone()

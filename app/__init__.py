@@ -1,6 +1,8 @@
+from pathlib import Path
 from flask import Flask
 
-app = Flask(__name__)
+instance_path = Path(__file__).parent.parent
+app = Flask(__name__, instance_path=instance_path)
 
 from app.api import api
 from app.controllers import admin_login_app

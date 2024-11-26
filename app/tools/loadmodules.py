@@ -7,27 +7,6 @@ from pathlib import Path
 from types import ModuleType
 
 
-def __load_modules():
-
-    modules_path = Path(os.path.dirname(__file__))
-    modules_path = os.path.join(modules_path.parent, "modules")
-
-    all_modules = os.listdir(modules_path)
-
-    for module_name in all_modules:
-
-        if module_name != "__pycache__":
-            __import__("app.modules." + module_name)
-            module = sys.modules["app.modules." + module_name]
-            modules = inspect.getmembers(module, inspect.isclass)
-            for module in modules:
-                name, obj = module
-                if hasattr(obj, "build"):
-                    class_obj = obj()
-                    action = getattr(class_obj, "build")
-                    action()
-
-
 def load_modules(app: flask.Flask):
     modules_path = Path(os.path.dirname(__file__))
     modules_path = modules_path.parent / "modules"  # More 'pathlib' style
