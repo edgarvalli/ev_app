@@ -226,6 +226,23 @@ class Database:
             "message": f"Record with id {id} was updated",
             "data": id,
         }
+    
+    def unlink(self, model: str, id: int) -> dict:
+        query = f"DELETE FROM {model} WHERE id={id}"
+        try:
+            self.connect()
+            self.mysql_cursor.execute(query)
+            self.mysql_connection.commit()
+        except mysql.connector.errors.IntegrityError as e:
+            return {"error": True, "message": e.msg}
+        finally:
+            self.close()
+
+        return {
+            "error": False,
+            "message": f"Record with id {id} was removed",
+            "data": id,
+        }
 
     def bulk_from_csv(self, csv_path: str) -> dict:
         csv_path: Path = Path(csv_path)
