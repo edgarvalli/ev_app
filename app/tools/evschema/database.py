@@ -1,7 +1,7 @@
 import csv
-import mysql.connector
+import pymysql
 from pathlib import Path
-import mysql.connector.abstracts
+import pymysql.cursors
 
 
 def build_condition(key: str, cond: str, param: str | int, operator: str = None) -> str:
@@ -19,11 +19,6 @@ def build_condition(key: str, cond: str, param: str | int, operator: str = None)
         else:
             operator_str = " AND "
     return f"{operator_str}{key} {cond} {param}"
-
-
-def is_bidimensional(tup):
-    return isinstance(tup, tuple) and all(isinstance(i, (tuple, list)) for i in tup)
-
 
 class DBConfig:
     dbhost: str
@@ -46,11 +41,10 @@ class DBConfig:
             if hasattr(self, key):
                 setattr(self, key, config[key])
 
-
 class Database:
 
-    mysql_connection: mysql.connector.MySQLConnection
-    mysql_cursor = mysql.connector.abstracts.MySQLCursorAbstract
+    mysql_connection: pymysql.Connection
+    mysql_cursor = pymysql.cursors.Cursor
     config: DBConfig = None
 
     def __init__(self) -> None:
@@ -59,9 +53,9 @@ class Database:
         self.mysql_cursor = None
 
     def connect(self):
-        if self.mysql_connection is None or not self.mysql_connection.is_connected():
+        if self.mysql_connection is None or not self.mysql_connection.open:
             try:
-                self.mysql_connection = mysql.connector.connect(
+                self.mysql_connection = pymysql.connect(
                     host=self.config.dbhost,
                     port=self.config.dbport,
                     user=self.config.dbuser,
@@ -69,9 +63,9 @@ class Database:
                     database=self.config.dbname,
                 )
 
-                self.mysql_cursor = self.mysql_connection.cursor(dictionary=True)
-            except mysql.connector.errors.ProgrammingError as e:
-                print("Ocurrio un error al conectar con la base de datos: " + e.msg)
+                self.mysql_cursor = self.mysql_connection.cursor(pymysql.cursors.DictCursor)
+            except pymysql.ProgrammingError as e:
+                print("Ocurrio un error al conectar con la base de datos: " + e)
 
     def database_exists(self, dbname) -> bool:
         exists = True
@@ -114,14 +108,14 @@ class Database:
 
     def close(self):
         try:
-            if self.mysql_connection.is_connected():
+            if self.mysql_connection.open:
                 self.mysql_connection.close()
-        except mysql.connector.errors.InternalError as e:
+        except pymysql.InternalError as e:
             print(e.msg)
 
     def changedb(self, dbname: str):
         self.dbname = dbname
-        self.mysql_connection.database = dbname
+        self.mysql_connection.select_db(dbname)
 
     def search(self, model: str, **kvargs):
         response = {"error": True, "message": "", "columns": {}, "data": []}
@@ -141,7 +135,6 @@ class Database:
                     if len(condition) == 3:
                         a, b, c = condition
                         condition = (a, b, c, "&")
-                    # print(condition)
                     key, cond, param, operator = condition
                     if i == 0:
                         conditions.append(
@@ -172,15 +165,38 @@ class Database:
             response["columns"] = [obj for obj in columns if obj["name"] in fields]
         else:
             response["columns"] = columns
+            
+        
+        def set_error_response(msg: str):
+            response["error"] = False
+            response["message"] = msg
+
+        # try:
+        #     response["data"] = self.query(query=query).fetchall()
+        #     response["error"] = False
+        #     response["message"] = query
+        # except pymysql.ProgrammingError as e:
+        #     set_error_response(e)
+        # except pymysql.DatabaseError as e:
+        #     set_error_response(e)
+        # except pymysql.DataError as e:
+        #     set_error_response(e)
+        # except pymysql.Error as e:
+        #     set_error_response(e)
+        # except pymysql.MySQLError as e:
+        #     set_error_response(e)
+        # except pymysql.ProgrammingError as e:
+        #     set_error_response(e)
+        # except:
+        #     set_error_response("Ocurrio un error al procesar la petición")
 
         response["data"] = self.query(query=query).fetchall()
         response["error"] = False
         response["message"] = query
-
         return response
 
-    def query(self, query: str) -> mysql.connector.abstracts.MySQLCursorAbstract:
-        if self.mysql_connection is None or not self.mysql_connection.is_connected():
+    def query(self, query: str) -> pymysql.cursors.DictCursor:
+        if self.mysql_connection is None or not self.mysql_connection.open:
             self.connect()
         self.mysql_cursor.execute(query)
         return self.mysql_cursor
@@ -195,7 +211,7 @@ class Database:
         try:
             self.mysql_cursor.execute(query, record)
             self.mysql_connection.commit()
-        except mysql.connector.errors.IntegrityError as e:
+        except pymysql.IntegrityError as e:
             return {"error": True, "message": e.msg}
 
         self.close()
@@ -216,7 +232,7 @@ class Database:
             self.connect()
             self.mysql_cursor.execute(query)
             self.mysql_connection.commit()
-        except mysql.connector.errors.IntegrityError as e:
+        except pymysql.IntegrityError as e:
             return {"error": True, "message": e.msg}
         finally:
             self.close()
@@ -226,14 +242,14 @@ class Database:
             "message": f"Record with id {id} was updated",
             "data": id,
         }
-    
+
     def unlink(self, model: str, id: int) -> dict:
         query = f"DELETE FROM {model} WHERE id={id}"
         try:
             self.connect()
             self.mysql_cursor.execute(query)
             self.mysql_connection.commit()
-        except mysql.connector.errors.IntegrityError as e:
+        except pymysql.IntegrityError as e:
             return {"error": True, "message": e.msg}
         finally:
             self.close()
@@ -282,7 +298,7 @@ class Database:
             self.connect()
             self.mysql_cursor.executemany(query, values)
             self.mysql_connection.commit()
-        except mysql.connector.errors.IntegrityError as e:
+        except pymysql.IntegrityError as e:
             return {"error": True, "message": e.msg}
         finally:
             self.close()

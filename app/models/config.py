@@ -1,4 +1,4 @@
-from app.tools.evorm import columns, models
+from app.tools.evschema import columns, models
 
 class Config(models.Model):
     name = columns.Char('Nombre', size=50,index=True, unique=True)

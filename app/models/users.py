@@ -1,4 +1,4 @@
-from app.tools.evorm import columns, models
+from app.tools.evschema import columns, models
 
 class Users(models.Model):
     username = columns.Char('Usuario', size=50)

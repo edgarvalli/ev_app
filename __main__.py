@@ -1,9 +1,9 @@
 from os import path
 from app import app
-from app.tools.parse_config import get_config
+from app.tools.utils import load_config
 
 
-config: dict = get_config()
+config: dict = load_config()
 
 host = config['host']
 port = config['port']

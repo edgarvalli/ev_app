@@ -4,7 +4,6 @@ import inspect
 import importlib
 from pathlib import Path
 from .database import Database, DBConfig
-from .models import Model
 
 def generate_database(config: DBConfig, models_path: str | Path):
 
@@ -29,7 +28,7 @@ def generate_database(config: DBConfig, models_path: str | Path):
         if model.name == "__pycache__":
             continue
 
-        if model.name.startswith("__ini__"):
+        if model.name == '__ini__.py':
             continue
 
         model_name = model.name[:-3]
@@ -100,8 +99,3 @@ def create_database(config: DBConfig, models_path: str) -> dict:
         f"Database {db.config.dbname} and models created successfully."
     )
     return return_obj
-
-
-def create_model(config: DBConfig, model: Model):
-    model._name
-    model.build(config=config)
