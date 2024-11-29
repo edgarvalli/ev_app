@@ -1,7 +1,8 @@
-from flask import Flask
-from app.tools.utils import generate_password
 from pathlib import Path
+from flask import Flask, render_template
+
 instance_path = Path(__file__).parent.parent
+
 app = Flask(__name__, instance_path=instance_path)
 
 app.config['JWT_SECRET_KEY'] = 'RooX9+JFgv?XMGH'
@@ -20,4 +21,4 @@ def index():
 @app.route('/test')
 def test():
     # module = get_module('admin', 'Users')
-    return 'Test'
+    return render_template('test.html')

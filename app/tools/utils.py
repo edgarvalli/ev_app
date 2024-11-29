@@ -64,9 +64,9 @@ def set_config(key: str, val: str):
     file_config.write(json.dumps(config))
     file_config.close()
     
-def generate_password(length=12):
+def generate_password(size=12):
     # Caracteres posibles para la contraseña
     caracteres = string.ascii_letters + string.digits + string.punctuation  # Letras, números y signos
     # Generar una contraseña aleatoria usando 'secrets' para mayor seguridad
-    contraseña = ''.join(secrets.choice(caracteres) for i in range(length))
+    contraseña = ''.join(secrets.choice(caracteres) for i in range(size))
     return contraseña

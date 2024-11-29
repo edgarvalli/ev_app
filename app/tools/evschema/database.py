@@ -2,6 +2,7 @@ import csv
 import pymysql
 from pathlib import Path
 import pymysql.cursors
+from .utils import is_bidimensional
 
 
 def build_condition(key: str, cond: str, param: str | int, operator: str = None) -> str:
@@ -19,6 +20,7 @@ def build_condition(key: str, cond: str, param: str | int, operator: str = None)
         else:
             operator_str = " AND "
     return f"{operator_str}{key} {cond} {param}"
+
 
 class DBConfig:
     dbhost: str
@@ -40,6 +42,7 @@ class DBConfig:
         for key in config.keys():
             if hasattr(self, key):
                 setattr(self, key, config[key])
+
 
 class Database:
 
@@ -63,7 +66,9 @@ class Database:
                     database=self.config.dbname,
                 )
 
-                self.mysql_cursor = self.mysql_connection.cursor(pymysql.cursors.DictCursor)
+                self.mysql_cursor = self.mysql_connection.cursor(
+                    pymysql.cursors.DictCursor
+                )
             except pymysql.ProgrammingError as e:
                 print("Ocurrio un error al conectar con la base de datos: " + e)
 
@@ -165,40 +170,40 @@ class Database:
             response["columns"] = [obj for obj in columns if obj["name"] in fields]
         else:
             response["columns"] = columns
-            
+
         
         def set_error_response(msg: str):
             response["error"] = False
             response["message"] = msg
 
-        # try:
-        #     response["data"] = self.query(query=query).fetchall()
-        #     response["error"] = False
-        #     response["message"] = query
-        # except pymysql.ProgrammingError as e:
-        #     set_error_response(e)
-        # except pymysql.DatabaseError as e:
-        #     set_error_response(e)
-        # except pymysql.DataError as e:
-        #     set_error_response(e)
-        # except pymysql.Error as e:
-        #     set_error_response(e)
-        # except pymysql.MySQLError as e:
-        #     set_error_response(e)
-        # except pymysql.ProgrammingError as e:
-        #     set_error_response(e)
-        # except:
-        #     set_error_response("Ocurrio un error al procesar la petición")
-
-        response["data"] = self.query(query=query).fetchall()
-        response["error"] = False
-        response["message"] = query
+        try:
+            response["data"] = self.query(query=query).fetchall()
+            response["error"] = False
+            response["message"] = ''
+        except pymysql.ProgrammingError as e:
+            set_error_response(e)
+        except pymysql.DatabaseError as e:
+            set_error_response(e)
+        except pymysql.DataError as e:
+            set_error_response(e)
+        except pymysql.Error as e:
+            set_error_response(e)
+        except pymysql.MySQLError as e:
+            set_error_response(e)
+        except pymysql.ProgrammingError as e:
+            set_error_response(e)
+        except:
+            set_error_response("Ocurrio un error al procesar la petición")
+            
         return response
 
-    def query(self, query: str) -> pymysql.cursors.DictCursor:
+    def query(self, query: str, **kvargs) -> pymysql.cursors.DictCursor:
         if self.mysql_connection is None or not self.mysql_connection.open:
             self.connect()
-        self.mysql_cursor.execute(query)
+        if kvargs.values().__len__() == 0:
+            self.mysql_cursor.execute(query)
+        else:
+            self.mysql_cursor.execute(query, tuple(kvargs.values()))
         return self.mysql_cursor
 
     def save(self, model: str, record: dict) -> dict:
@@ -206,6 +211,7 @@ class Database:
         fields = record.keys()
         values = record.values()
         values_key = [f"%s" for _ in values]
+        
         query = f"INSERT INTO {model} ({','.join(fields)}) VALUES ({values_key})"
 
         try:
@@ -219,14 +225,14 @@ class Database:
 
     def update(self, model: str, id: int, data: dict) -> dict:
         params = []
-
         for k, v in data.items():  # Cambiamos a data.items()
             if not isinstance(v, (int, float)):  # Verifica si no es número
                 v = f"'{v}'"  # Asegura que las cadenas estén entre comillas simples
 
             params.append(f"{k}={v}")
 
-        query = f"UPDATE {model} SET {', '.join(params)} WHERE id={id}"
+        params = ', '.join(params)
+        query = f"UPDATE {model} SET {params} WHERE id={id}"
 
         try:
             self.connect()
@@ -244,10 +250,10 @@ class Database:
         }
 
     def unlink(self, model: str, id: int) -> dict:
-        query = f"DELETE FROM {model} WHERE id={id}"
+        query = "DELETE FROM %s WHERE id=%s"
         try:
             self.connect()
-            self.mysql_cursor.execute(query)
+            self.mysql_cursor.execute(query, model=model, id=id)
             self.mysql_connection.commit()
         except pymysql.IntegrityError as e:
             return {"error": True, "message": e.msg}

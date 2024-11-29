@@ -52,7 +52,6 @@ def generate_database(config: DBConfig, models_path: str | Path):
         )
     return response
 
-
 def create_database(config: DBConfig, models_path: str) -> dict:
     return_obj = {"error": True, "message": ""}
     models_path: Path = Path(models_path)

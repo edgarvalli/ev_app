@@ -1,3 +1,6 @@
 flask
 pyjwt
+bcrypt
 pymysql
+flask-cors
+marshmallow
